@@ -1,30 +1,10 @@
-from flask import Flask, request, render_template
-import requests
 import os
+import requests
+import json
+
+from flask import Flask, render_template, jsonify, request
 
 app = Flask(__name__)
-from flask import Flask, render_template, jsonify
-
-app = Flask(__name__)
-
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-@app.route('/layout')
-def layout():
-    # Dummy room layout
-    layout_data = {
-        "rooms": [
-            {"name": "Bedroom", "x": 0, "y": 0, "width": 4, "length": 3},
-            {"name": "Kitchen", "x": 4, "y": 0, "width": 3, "length": 3},
-            {"name": "Bathroom", "x": 0, "y": 3, "width": 2, "length": 2}
-        ]
-    }
-    return jsonify(layout_data)
-
-if __name__ == '__main__':
-    app.run(debug=True)
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
@@ -38,39 +18,47 @@ def generate_tiny_home(prompt):
     data = {
         "model": "llama3-70b-8192",
         "messages": [
-            {"role": "system", "content": "You are an expert in tiny home design."},
+            {"role": "system", "content": "You are an expert in tiny home design who responds ONLY with strict JSON."},
             {"role": "user", "content": prompt}
         ]
     }
 
     response = requests.post(url, headers=headers, json=data)
     result = response.json()
+
     try:
-        return result["choices"][0]["message"]["content"]
-    except:
-        return f"Error: {result.get('error', 'Unknown error')}"
+        content = result["choices"][0]["message"]["content"].strip()
+        return json.loads(content)
+    except Exception as e:
+        return {"error": str(e), "raw": result}
 
-@app.route("/", methods=["GET", "POST"])
-def home():
-    output = ""
-    if request.method == "POST":
-        num_people = request.form["num_people"]
-        budget = request.form["budget"]
-        climate = request.form["climate"]
-        needs = request.form["needs"]
-        style = request.form["style"]
+@app.route("/")
+def index():
+    return render_template("index.html")
 
-        prompt = f"""Design a tiny home for:
-        - {num_people}
-        - Budget: {budget}
-        - Climate: {climate}
-        - Needs: {needs}
-        - Style: {style}
-        """
+@app.route("/generate-layout", methods=["POST"])
+def generate_layout():
+    data = request.get_json()
 
-        output = generate_tiny_home(prompt)
+    prompt = f"""Design a tiny home layout for:
+- People: {data.get('num_people')}
+- Budget: {data.get('budget')}
+- Climate: {data.get('climate')}
+- Needs: {data.get('needs')}
+- Style: {data.get('style')}
 
-    return render_template("index.html", output=output)
+Return ONLY valid JSON with this structure:
+{{
+  "rooms": [
+    {{"name": "Room name", "x": 0, "y": 0, "width": 3, "length": 3, "height": 2.5}},
+    ...
+  ]
+}}
+"""
+
+    layout = generate_tiny_home(prompt)
+    return jsonify(layout)
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(debug=True, host="0.0.0.0", port=port)

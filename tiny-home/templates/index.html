@@ -1,14 +1,42 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>3D Tiny Home Generator</title>
-  <style>
-    body { margin: 0; overflow: hidden; }
-    canvas { display: block; }
-  </style>
+    <meta charset="UTF-8">
+    <title>3D Tiny Home Generator</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        #controls {
+            padding: 1rem;
+            background: #f7f7f7;
+            display: flex;
+            gap: 0.5rem;
+        }
+        #viewer {
+            flex-grow: 1;
+        }
+        input, button {
+            padding: 0.4rem;
+        }
+    </style>
 </head>
 <body>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r148/three.min.js"></script>
-  <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <div id="controls">
+        <input id="num_people" placeholder="People">
+        <input id="budget" placeholder="Budget">
+        <input id="climate" placeholder="Climate">
+        <input id="needs" placeholder="Needs">
+        <input id="style" placeholder="Style">
+        <button onclick="generateLayout()">Generate</button>
+    </div>
+    <div id="viewer"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r148/three.min.js"></script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
