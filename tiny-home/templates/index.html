@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Tiny Home Generator</title>
+</head>
+<body>
+    <h1>Custom Tiny Home Generator</h1>
+    <form method="POST">
+        <label>Number of People</label><br>
+        <input type="text" name="num_people" required><br><br>
+
+        <label>Budget</label><br>
+        <input type="text" name="budget" required><br><br>
+
+        <label>Climate</label><br>
+        <input type="text" name="climate" required><br><br>
+
+        <label>Special Needs</label><br>
+        <input type="text" name="needs" required><br><br>
+
+        <label>Style</label><br>
+        <input type="text" name="style" required><br><br>
+
+        <input type="submit" value="Generate">
+    </form>
+
+    {% if output %}
+        <h2>Generated Tiny Home Design:</h2>
+        <pre>{{ output }}</pre>
+    {% endif %}
+</body>
+</html>
