@@ -1,9 +1,31 @@
 from flask import Flask, request, render_template
 import requests
+import os
+
+app = Flask(__name__)
+from flask import Flask, render_template, jsonify
 
 app = Flask(__name__)
 
-import os
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/layout')
+def layout():
+    # Dummy room layout
+    layout_data = {
+        "rooms": [
+            {"name": "Bedroom", "x": 0, "y": 0, "width": 4, "length": 3},
+            {"name": "Kitchen", "x": 4, "y": 0, "width": 3, "length": 3},
+            {"name": "Bathroom", "x": 0, "y": 3, "width": 2, "length": 2}
+        ]
+    }
+    return jsonify(layout_data)
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
 def generate_tiny_home(prompt):
