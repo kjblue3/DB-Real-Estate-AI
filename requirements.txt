@@ -61,7 +61,6 @@ typing_extensions==4.12.2
 urllib3==2.2.2
 waybackpy==3.0.6
 websocket-client==1.8.0
-Werkzeug==3.0.3
 wrapt==1.16.0
 wsproto==1.2.0
 flask
