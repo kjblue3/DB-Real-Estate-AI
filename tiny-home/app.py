@@ -3,7 +3,8 @@ import requests
 
 app = Flask(__name__)
 
-GROQ_API_KEY = "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"
+import os
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
 def generate_tiny_home(prompt):
     url = "https://api.groq.com/openai/v1/chat/completions"
