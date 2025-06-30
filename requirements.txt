@@ -37,7 +37,7 @@ mdurl==0.1.2
 ml-dtypes==0.4.0
 namex==0.0.8
 np_utils==0.6.0
-numpy==1.23.5
+numpy>=1.26.4
 openai==1.93.0
 opt-einsum==3.3.0
 optree==0.12.1
