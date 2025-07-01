@@ -1,8 +1,4 @@
-// Import from CDN as modules
-import * as THREE from 'https://cdn.skypack.dev/three@0.148.0';
-import { OrbitControls } from 'https://cdn.skypack.dev/three@0.148.0/examples/jsm/controls/OrbitControls.js';
-
-let scene, camera, renderer, controls;
+let engine, scene, camera;
 
 async function fetchLayout(data) {
     const res = await fetch("/generate-layout", {
@@ -10,89 +6,116 @@ async function fetchLayout(data) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data)
     });
-
-    try {
-        return await res.json();
-    } catch (error) {
-        console.error("Failed to parse response as JSON:", error);
-        return { error: "Invalid JSON response from server." };
-    }
+    return res.json();
 }
 
 function clearScene() {
-    if (!scene) return;
-    for (let i = scene.children.length - 1; i >= 0; i--) {
-        const obj = scene.children[i];
-        if (obj.type === 'Mesh' || obj.type === 'GridHelper') {
-            scene.remove(obj);
-        }
+    const toRemove = scene.meshes.filter(mesh => mesh.name !== "ground");
+    toRemove.forEach(mesh => mesh.dispose());
+}
+
+function createFeature(room, feature) {
+    const baseX = room.x + room.width / 2;
+    const baseZ = room.y + room.length / 2;
+
+    if (feature === "window") {
+        const windowMesh = BABYLON.MeshBuilder.CreatePlane("window", { width: 1, height: 1 }, scene);
+        windowMesh.position = new BABYLON.Vector3(baseX, 1.5, room.y);
+        const mat = new BABYLON.StandardMaterial("winMat", scene);
+        mat.diffuseColor = new BABYLON.Color3(0.8, 0.9, 1.0);
+        mat.alpha = 0.5;
+        windowMesh.material = mat;
+    }
+
+    if (feature === "roof") {
+        const roof = BABYLON.MeshBuilder.CreateCylinder("roof", {
+            diameter: Math.max(room.width, room.length) * 1.2,
+            height: 1,
+            tessellation: 3
+        }, scene);
+        roof.position = new BABYLON.Vector3(baseX, room.height + 0.5, baseZ);
+        roof.rotation.z = Math.PI / 2;
+        roof.material = new BABYLON.StandardMaterial("roofMat", scene);
+        roof.material.diffuseColor = new BABYLON.Color3(0.5, 0.2, 0.2);
+    }
+
+    if (feature === "plant") {
+        const plant = BABYLON.MeshBuilder.CreateSphere("plant", { diameter: 0.5 }, scene);
+        plant.position = new BABYLON.Vector3(baseX + 1, 0.25, baseZ + 1);
+        const mat = new BABYLON.StandardMaterial("plantMat", scene);
+        mat.diffuseColor = BABYLON.Color3.Green();
+        plant.material = mat;
+    }
+
+    if (feature === "bed") {
+        const bed = BABYLON.MeshBuilder.CreateBox("bed", { width: 2, height: 0.5, depth: 1 }, scene);
+        bed.position = new BABYLON.Vector3(baseX - 1, 0.25, baseZ - 1);
+        bed.material = new BABYLON.StandardMaterial("bedMat", scene);
+        bed.material.diffuseColor = new BABYLON.Color3(0.9, 0.7, 0.7);
     }
 }
 
 function createRoom(room) {
-    const geometry = new THREE.BoxGeometry(room.width, room.height, room.length);
-    const material = new THREE.MeshStandardMaterial({ color: 0x99ccff });
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.set(
-        room.x + room.width / 2,
-        room.height / 2,
-        room.y + room.length / 2
-    );
-    scene.add(mesh);
+    const box = BABYLON.MeshBuilder.CreateBox(room.name, {
+        width: room.width,
+        height: room.height,
+        depth: room.length
+    }, scene);
+
+    box.position.x = room.x + room.width / 2;
+    box.position.y = room.height / 2;
+    box.position.z = room.y + room.length / 2;
+
+    const mat = new BABYLON.StandardMaterial("mat_" + room.name, scene);
+    mat.diffuseColor = new BABYLON.Color3(0.6, 0.8, 1.0); // light blue
+    box.material = mat;
+
+    if (room.features) {
+        room.features.forEach(feature => createFeature(room, feature));
+    }
 }
 
 function setupScene() {
-    scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xf0f0f0);
+    const canvas = document.createElement("canvas");
+    canvas.id = "renderCanvas";
+    document.getElementById("viewer").appendChild(canvas);
 
-    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(10, 10, 15);
+    engine = new BABYLON.Engine(canvas, true);
+    scene = new BABYLON.Scene(engine);
 
-    renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    document.getElementById("viewer").appendChild(renderer.domElement);
+    camera = new BABYLON.ArcRotateCamera("camera", Math.PI / 4, Math.PI / 3, 30, new BABYLON.Vector3(10, 0, 10), scene);
+    camera.attachControl(canvas, true);
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-    directionalLight.position.set(10, 20, 10);
-    scene.add(directionalLight);
+    const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
+    light.intensity = 0.9;
 
-    scene.add(new THREE.AmbientLight(0x404040));
-    scene.add(new THREE.GridHelper(50, 50));
+    BABYLON.MeshBuilder.CreateGround("ground", { width: 50, height: 50 }, scene);
 
-    controls = new OrbitControls(camera, renderer.domElement);
-    animate();
-}
-
-function animate() {
-    requestAnimationFrame(animate);
-    controls.update();
-    renderer.render(scene, camera);
+    engine.runRenderLoop(() => scene.render());
+    window.addEventListener("resize", () => engine.resize());
 }
 
 async function generateLayout() {
     const inputData = {
         num_people: document.getElementById("num_people").value,
         budget: document.getElementById("budget").value,
-        climate: document.getElementById("climate").value,
-        needs: document.getElementById("needs").value,
-        style: document.getElementById("style").value
+        needs: document.getElementById("needs").value
     };
 
     const layout = await fetchLayout(inputData);
-    console.log("Layout returned from API:", layout);
+    console.log("Returned layout:", layout);
 
     clearScene();
 
-    if (layout.rooms && Array.isArray(layout.rooms)) {
+    if (layout.rooms) {
         layout.rooms.forEach(createRoom);
+        document.getElementById("explanation").innerText = layout.explanation || "No explanation provided.";
     } else {
-        console.error("Invalid layout response:", layout);
-        alert("Error: Could not generate rooms. See console for details.");
+        alert("Failed to generate layout.");
     }
 }
 
-// Setup after DOM is ready
 window.addEventListener("DOMContentLoaded", () => {
     setupScene();
-    document.getElementById("generateBtn").addEventListener("click", generateLayout);
+    document.getElementById("generate-btn").addEventListener("click", generateLayout);
 });

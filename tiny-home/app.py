@@ -6,8 +6,8 @@ from flask import Flask, render_template, jsonify, request
 
 app = Flask(__name__)
 
-#GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 GROQ_API_KEY = "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"
+
 def generate_tiny_home(prompt):
     url = "https://api.groq.com/openai/v1/chat/completions"
     headers = {
@@ -18,7 +18,7 @@ def generate_tiny_home(prompt):
     data = {
         "model": "llama3-70b-8192",
         "messages": [
-            {"role": "system", "content": "You are an expert in tiny home design who responds ONLY with strict JSON and includes at least 1 room."},
+            {"role": "system", "content": "You are an expert tiny home architect who responds ONLY with valid JSON including layout data and a short explanation of your design choices."},
             {"role": "user", "content": prompt}
         ]
     }
@@ -45,18 +45,23 @@ def index():
 def generate_layout():
     data = request.get_json()
 
-    prompt = f"""Design a tiny home layout for:
+    prompt = f"""
+Design a practical tiny home in California for:
 - People: {data.get('num_people')}
 - Budget: {data.get('budget')}
-- Climate: {data.get('climate')}
 - Needs: {data.get('needs')}
-- Style: {data.get('style')}
 
-Return ONLY valid JSON with this structure:
+Use practical design suitable for the California climate. Return ONLY valid JSON like this:
+
 {{
+  "explanation": "Short paragraph explaining the design decisions",
   "rooms": [
-    {{"name": "Room name", "x": 0, "y": 0, "width": 3, "length": 3, "height": 2.5}},
-    ...
+    {{
+      "name": "Room name",
+      "x": 0, "y": 0,
+      "width": 3, "length": 3, "height": 2.5,
+      "features": ["window", "plant", "bed", "roof"]
+    }}
   ]
 }}
 """

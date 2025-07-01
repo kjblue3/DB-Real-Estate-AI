@@ -6,37 +6,48 @@
     <style>
         body {
             margin: 0;
-            overflow: hidden;
+            font-family: Arial, sans-serif;
             display: flex;
             flex-direction: column;
             height: 100vh;
         }
         #controls {
             padding: 1rem;
-            background: #f7f7f7;
+            background: #222;
+            color: white;
             display: flex;
             gap: 0.5rem;
+            align-items: center;
+        }
+        #controls input, #controls button {
+            padding: 0.4rem;
+            font-size: 1rem;
+        }
+        #explanation {
+            padding: 1rem;
+            background: #f4f4f4;
+            font-style: italic;
+            font-size: 0.95rem;
         }
         #viewer {
             flex-grow: 1;
-        }
-        input, button {
-            padding: 0.4rem;
         }
     </style>
 </head>
 <body>
     <div id="controls">
-        <input id="num_people" placeholder="People">
-        <input id="budget" placeholder="Budget">
-        <input id="climate" placeholder="Climate">
-        <input id="needs" placeholder="Needs">
-        <input id="style" placeholder="Style">
-        <button id="generateBtn">Generate</button>
+        <label>People: <input id="num_people" type="number"></label>
+        <label>Budget: <input id="budget" type="text"></label>
+        <label>Needs: <input id="needs" type="text" size="40"></label>
+        <button id="generate-btn">Generate</button>
     </div>
+    <div id="explanation">Design explanation will appear here.</div>
     <div id="viewer"></div>
 
-    <!-- Our custom script that uses modules -->
-    <script type="module" src="{{ url_for('static', filename='script.js') }}"></script>
+    <!-- Babylon.js -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
