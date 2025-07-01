@@ -6,8 +6,8 @@ from flask import Flask, render_template, jsonify, request
 
 app = Flask(__name__)
 
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
-
+#GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+GROQ_API_KEY = "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"
 def generate_tiny_home(prompt):
     url = "https://api.groq.com/openai/v1/chat/completions"
     headers = {
@@ -18,7 +18,7 @@ def generate_tiny_home(prompt):
     data = {
         "model": "llama3-70b-8192",
         "messages": [
-            {"role": "system", "content": "You are an expert in tiny home design who responds ONLY with strict JSON."},
+            {"role": "system", "content": "You are an expert in tiny home design who responds ONLY with strict JSON and includes at least 1 room."},
             {"role": "user", "content": prompt}
         ]
     }
@@ -26,10 +26,15 @@ def generate_tiny_home(prompt):
     response = requests.post(url, headers=headers, json=data)
     result = response.json()
 
+    print("🛠️ Raw Groq API response:")
+    print(json.dumps(result, indent=2))
+
     try:
         content = result["choices"][0]["message"]["content"].strip()
+        print("🔧 Extracted content:", content)
         return json.loads(content)
     except Exception as e:
+        print("❌ JSON decode error:", str(e))
         return {"error": str(e), "raw": result}
 
 @app.route("/")

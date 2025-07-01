@@ -1,3 +1,7 @@
+// Import from CDN as modules
+import * as THREE from 'https://cdn.skypack.dev/three@0.148.0';
+import { OrbitControls } from 'https://cdn.skypack.dev/three@0.148.0/examples/jsm/controls/OrbitControls.js';
+
 let scene, camera, renderer, controls;
 
 async function fetchLayout(data) {
@@ -6,19 +10,29 @@ async function fetchLayout(data) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data)
     });
-    return res.json();
+
+    try {
+        return await res.json();
+    } catch (error) {
+        console.error("Failed to parse response as JSON:", error);
+        return { error: "Invalid JSON response from server." };
+    }
 }
 
 function clearScene() {
-    while(scene.children.length > 0){
-        scene.remove(scene.children[0]);
+    if (!scene) return;
+    for (let i = scene.children.length - 1; i >= 0; i--) {
+        const obj = scene.children[i];
+        if (obj.type === 'Mesh' || obj.type === 'GridHelper') {
+            scene.remove(obj);
+        }
     }
 }
 
 function createRoom(room) {
-    const geom = new THREE.BoxGeometry(room.width, room.height, room.length);
-    const mat = new THREE.MeshStandardMaterial({ color: 0x99ccff });
-    const mesh = new THREE.Mesh(geom, mat);
+    const geometry = new THREE.BoxGeometry(room.width, room.height, room.length);
+    const material = new THREE.MeshStandardMaterial({ color: 0x99ccff });
+    const mesh = new THREE.Mesh(geometry, material);
     mesh.position.set(
         room.x + room.width / 2,
         room.height / 2,
@@ -31,33 +45,27 @@ function setupScene() {
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0xf0f0f0);
 
-    camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.set(10, 10, 15);
 
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.getElementById("viewer").appendChild(renderer.domElement);
 
-    const light = new THREE.DirectionalLight(0xffffff, 1);
-    light.position.set(10, 20, 10);
-    scene.add(light);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(10, 20, 10);
+    scene.add(directionalLight);
+
     scene.add(new THREE.AmbientLight(0x404040));
+    scene.add(new THREE.GridHelper(50, 50));
 
-    const grid = new THREE.GridHelper(50, 50);
-    scene.add(grid);
-
-    const loader = document.createElement('script');
-    loader.src = 'https://threejs.org/examples/js/controls/OrbitControls.js';
-    loader.onload = () => {
-        controls = new THREE.OrbitControls(camera, renderer.domElement);
-        animate();
-    };
-    document.head.appendChild(loader);
+    controls = new OrbitControls(camera, renderer.domElement);
+    animate();
 }
 
 function animate() {
     requestAnimationFrame(animate);
-    if (controls) controls.update();
+    controls.update();
     renderer.render(scene, camera);
 }
 
@@ -71,16 +79,20 @@ async function generateLayout() {
     };
 
     const layout = await fetchLayout(inputData);
+    console.log("Layout returned from API:", layout);
 
     clearScene();
-    if (layout.rooms) {
+
+    if (layout.rooms && Array.isArray(layout.rooms)) {
         layout.rooms.forEach(createRoom);
     } else {
-        console.error("Error generating layout:", layout);
-        alert("Error: " + JSON.stringify(layout));
+        console.error("Invalid layout response:", layout);
+        alert("Error: Could not generate rooms. See console for details.");
     }
 }
 
+// Setup after DOM is ready
 window.addEventListener("DOMContentLoaded", () => {
     setupScene();
+    document.getElementById("generateBtn").addEventListener("click", generateLayout);
 });

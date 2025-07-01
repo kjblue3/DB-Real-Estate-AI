@@ -32,11 +32,11 @@
         <input id="climate" placeholder="Climate">
         <input id="needs" placeholder="Needs">
         <input id="style" placeholder="Style">
-        <button onclick="generateLayout()">Generate</button>
+        <button id="generateBtn">Generate</button>
     </div>
     <div id="viewer"></div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r148/three.min.js"></script>
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <!-- Our custom script that uses modules -->
+    <script type="module" src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
