@@ -6,7 +6,7 @@ from flask import Flask, render_template, jsonify, request
 from dotenv import load_dotenv
 
 # Load environment variables from .env file if it exists (for local development)
-load_dotenv()
+load_dotenv(dotenv_path=os.path.join(os.getcwd(), 'tiny-home', '.env'))
 
 # Initialize Flask with explicit template and static folders for deployment
 app = Flask(__name__, 
@@ -15,7 +15,13 @@ app = Flask(__name__,
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 if not GROQ_API_KEY:
-    print("Warning: GROQ_API_KEY environment variable not set. Please set it in a .env file (localhost) or in Render dashboard (production) to use the AI features.")
+    print("ERROR: GROQ_API_KEY environment variable not set!")
+    print("Please set it in a .env file (localhost) or in Render dashboard (production) to use the AI features.")
+else:
+    print(f"SUCCESS: GROQ_API_KEY loaded (length: {len(GROQ_API_KEY)})")
+    print(f"Key starts with: {GROQ_API_KEY[:10]}...")
+    print(f"Key ends with: ...{GROQ_API_KEY[-10:]}")
+    print(f"Contains spaces: {' ' in GROQ_API_KEY}")
 
 def extract_json_from_text(text):
     """Extract JSON from text, handling markdown code blocks."""
@@ -49,7 +55,7 @@ def generate_tiny_home(prompt):
         "Content-Type": "application/json"
     }
     data = {
-        "model": "llama3-70b-8192",
+        "model": "llama-3.3-70b-versatile",
         "messages": [
             {"role":"system","content":"You are an expert in tiny home design. Always assume a practical style and California climate. Respond ONLY with valid JSON in this structure:\n{\n  \"explanation\": \"...\",\n  \"rooms\": [\n    {\"name\":\"Room\",\"x\":0,\"y\":0,\"width\":3,\"length\":3,\"height\":2.5,\"features\":[\"door\",\"window\"]},\n    ...\n  ]\n}"},
             {"role":"user","content":prompt}
