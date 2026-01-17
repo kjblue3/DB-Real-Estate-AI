@@ -4,7 +4,10 @@ import json
 import re
 from flask import Flask, render_template, jsonify, request
 
-app = Flask(__name__)
+# Initialize Flask with explicit template and static folders for deployment
+app = Flask(__name__, 
+            template_folder='templates',
+            static_folder='static')
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 if not GROQ_API_KEY:
@@ -33,6 +36,7 @@ def extract_json_from_text(text):
 
 def generate_tiny_home(prompt):
     if not GROQ_API_KEY:
+        print("ERROR: GROQ_API_KEY not set!")
         return {"error": "GROQ_API_KEY environment variable not set. Please configure your API key.", "explanation": "API key not configured. Please set the GROQ_API_KEY environment variable.", "rooms": []}
 
     url = "https://api.groq.com/openai/v1/chat/completions"
@@ -83,7 +87,12 @@ def generate_tiny_home(prompt):
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    response = app.make_response(render_template("index.html"))
+    # Prevent caching of the HTML file
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 @app.route("/generate-layout", methods=["POST"])
 def generate_layout():
@@ -110,6 +119,7 @@ Design a California-practical tiny home for:
 Output ONLY JSON with \"explanation\" and a \"rooms\" list, each room having x,y,width,length,height and features like [\"door\",\"window\",\"plant\",\"bed\"].
 """
         layout = generate_tiny_home(prompt)
+        print(f"Generated layout response: {json.dumps(layout, indent=2)[:500]}")  # Debug logging
         return jsonify(layout)
     except Exception as e:
         return jsonify({"error": f"Request processing failed: {str(e)}", "explanation": "An error occurred while processing your request. Please try again.", "rooms": []})
