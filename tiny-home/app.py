@@ -5,7 +5,7 @@ import re
 from flask import Flask, render_template, jsonify, request
 from dotenv import load_dotenv
 
-# Load environment variables from .env file if it exists
+# Load environment variables from .env file if it exists (for local development)
 load_dotenv()
 
 # Initialize Flask with explicit template and static folders for deployment
@@ -15,7 +15,7 @@ app = Flask(__name__,
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 if not GROQ_API_KEY:
-    print("Warning: GROQ_API_KEY environment variable not set. Please set it in a .env file or as an environment variable to use the AI features.")
+    print("Warning: GROQ_API_KEY environment variable not set. Please set it in a .env file (localhost) or in Render dashboard (production) to use the AI features.")
 
 def extract_json_from_text(text):
     """Extract JSON from text, handling markdown code blocks."""
