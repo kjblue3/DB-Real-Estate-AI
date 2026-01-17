@@ -5,9 +5,14 @@ from flask import Flask, render_template, jsonify, request
 
 app = Flask(__name__)
 
-GROQ_API_KEY = "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"
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+if not GROQ_API_KEY:
+    print("Warning: GROQ_API_KEY environment variable not set. Please set it to use the AI features.")
 
 def generate_tiny_home(prompt):
+    if not GROQ_API_KEY:
+        return {"error": "GROQ_API_KEY environment variable not set. Please configure your API key.", "explanation": "API key not configured. Please set the GROQ_API_KEY environment variable."}
+
     url = "https://api.groq.com/openai/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {GROQ_API_KEY}",
