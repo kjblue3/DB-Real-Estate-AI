@@ -1,6 +1,7 @@
 import os
 import requests
 import json
+import re
 from flask import Flask, render_template, jsonify, request
 
 app = Flask(__name__)
@@ -9,9 +10,30 @@ GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 if not GROQ_API_KEY:
     print("Warning: GROQ_API_KEY environment variable not set. Please set it to use the AI features.")
 
+def extract_json_from_text(text):
+    """Extract JSON from text, handling markdown code blocks."""
+    text = text.strip()
+    # Try to find JSON in markdown code blocks (use greedy match for nested objects)
+    json_match = re.search(r'```(?:json)?\s*(\{.*\})\s*```', text, re.DOTALL)
+    if json_match:
+        return json_match.group(1)
+    # Try to find JSON object directly (match from first { to last })
+    start_idx = text.find('{')
+    if start_idx != -1:
+        # Count braces to find matching closing brace
+        brace_count = 0
+        for i in range(start_idx, len(text)):
+            if text[i] == '{':
+                brace_count += 1
+            elif text[i] == '}':
+                brace_count -= 1
+                if brace_count == 0:
+                    return text[start_idx:i+1]
+    return text
+
 def generate_tiny_home(prompt):
     if not GROQ_API_KEY:
-        return {"error": "GROQ_API_KEY environment variable not set. Please configure your API key.", "explanation": "API key not configured. Please set the GROQ_API_KEY environment variable."}
+        return {"error": "GROQ_API_KEY environment variable not set. Please configure your API key.", "explanation": "API key not configured. Please set the GROQ_API_KEY environment variable.", "rooms": []}
 
     url = "https://api.groq.com/openai/v1/chat/completions"
     headers = {
@@ -25,13 +47,39 @@ def generate_tiny_home(prompt):
             {"role":"user","content":prompt}
         ]
     }
-    res = requests.post(url, headers=headers, json=data)
-    result = res.json()
+    
     try:
+        res = requests.post(url, headers=headers, json=data, timeout=30)
+        res.raise_for_status()
+        result = res.json()
+        
+        if "choices" not in result or len(result["choices"]) == 0:
+            return {"error": "No response from AI API", "explanation": "The AI service returned an unexpected response.", "rooms": []}
+        
         content = result["choices"][0]["message"]["content"].strip()
-        return json.loads(content)
+        
+        # Extract JSON from the content (handles markdown code blocks)
+        json_str = extract_json_from_text(content)
+        
+        # Parse the JSON
+        layout = json.loads(json_str)
+        
+        # Validate structure
+        if "rooms" not in layout:
+            layout["rooms"] = []
+        if "explanation" not in layout:
+            layout["explanation"] = "Layout generated successfully."
+            
+        return layout
+        
+    except requests.exceptions.RequestException as e:
+        return {"error": f"API request failed: {str(e)}", "explanation": "Failed to connect to the AI service. Please check your internet connection and try again.", "rooms": []}
+    except json.JSONDecodeError as e:
+        return {"error": f"Failed to parse JSON response: {str(e)}", "explanation": "The AI service returned invalid data. Please try again.", "rooms": [], "raw_content": content[:500] if 'content' in locals() else None}
+    except KeyError as e:
+        return {"error": f"Unexpected response structure: {str(e)}", "explanation": "The AI service returned an unexpected response format.", "rooms": [], "raw": result if 'result' in locals() else None}
     except Exception as e:
-        return {"error": str(e), "raw": result}
+        return {"error": f"Unexpected error: {str(e)}", "explanation": "An unexpected error occurred. Please try again.", "rooms": []}
 
 @app.route("/")
 def index():
@@ -39,17 +87,32 @@ def index():
 
 @app.route("/generate-layout", methods=["POST"])
 def generate_layout():
-    data = request.get_json()
-    prompt = f"""
+    try:
+        data = request.get_json() or {}
+        num_people = data.get('num_people', 1)
+        budget = data.get('budget', '')
+        needs = data.get('needs', '')
+        
+        # Validate input
+        if not isinstance(num_people, (int, float)) or num_people < 1:
+            num_people = 1
+        if not isinstance(budget, str):
+            budget = str(budget) if budget else ''
+        if not isinstance(needs, str):
+            needs = str(needs) if needs else ''
+        
+        prompt = f"""
 Design a California-practical tiny home for:
-- People: {data.get('num_people')}
-- Budget: {data.get('budget')}
-- Needs: {data.get('needs')}
+- People: {num_people}
+- Budget: {budget}
+- Needs: {needs}
 
 Output ONLY JSON with \"explanation\" and a \"rooms\" list, each room having x,y,width,length,height and features like [\"door\",\"window\",\"plant\",\"bed\"].
 """
-    layout = generate_tiny_home(prompt)
-    return jsonify(layout)
+        layout = generate_tiny_home(prompt)
+        return jsonify(layout)
+    except Exception as e:
+        return jsonify({"error": f"Request processing failed: {str(e)}", "explanation": "An error occurred while processing your request. Please try again.", "rooms": []})
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT",5000)))

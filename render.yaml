@@ -3,5 +3,8 @@ services:
     name: tiny-home-ai
     env: python
     plan: free
-    buildCommand: ""
-    startCommand: gunicorn tiny-home.app:app --bind 0.0.0.0:$PORT
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "cd tiny-home && gunicorn app:app --bind 0.0.0.0:$PORT"
+    envVars:
+      - key: GROQ_API_KEY
+        value: ""  # Set this in Render dashboard

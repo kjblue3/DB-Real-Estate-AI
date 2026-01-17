@@ -8,23 +8,45 @@ async function fetchLayout(data) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data)
   });
+  
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`HTTP ${res.status}: ${errorText || 'Failed to fetch layout'}`);
+  }
+  
   return res.json();
 }
 
 // Remove all meshes except ground
 function clearScene() {
+  if (!scene || !scene.meshes) return;
   scene.meshes.slice().forEach(m => {
-    if (m.name !== "ground") m.dispose();
+    if (m && m.name !== "ground") m.dispose();
   });
 }
 
 // Create exterior rooms, doors, path, and plants
 function createExterior() {
+  if (!layoutData || !layoutData.rooms || !Array.isArray(layoutData.rooms)) {
+    console.error("Invalid layoutData:", layoutData);
+    return;
+  }
+  
   clearScene();
   isInterior = false;
-  document.getElementById("outside-btn").style.display = "none";
+  const outsideBtn = document.getElementById("outside-btn");
+  if (outsideBtn) outsideBtn.style.display = "none";
 
   layoutData.rooms.forEach(room => {
+    // Validate room properties
+    if (!room || typeof room.x !== 'number' || typeof room.y !== 'number' ||
+        typeof room.width !== 'number' || typeof room.length !== 'number' ||
+        typeof room.height !== 'number' || !room.name) {
+      console.warn("Invalid room data:", room);
+      return;
+    }
+    
+    const features = Array.isArray(room.features) ? room.features : [];
     // Room block
     const box = BABYLON.MeshBuilder.CreateBox(room.name, {
       width: room.width, height: room.height, depth: room.length
@@ -39,7 +61,7 @@ function createExterior() {
     box.material = mat;
 
     // Door
-    if (room.features.includes("door")) {
+    if (features.includes("door")) {
       const door = BABYLON.MeshBuilder.CreateBox("door_" + room.name, {
         width: 1, height: 2, depth: 0.1
       }, scene);
@@ -96,12 +118,25 @@ function createExterior() {
 
 // Build interior: walls, ceiling, furniture, and first-person camera
 function createInterior(doorMesh) {
+  if (!doorMesh || !doorMesh.name || !layoutData || !layoutData.rooms) {
+    console.error("Invalid door mesh or layoutData");
+    return;
+  }
+  
   clearScene();
   isInterior = true;
-  document.getElementById("outside-btn").style.display = "inline-block";
+  const outsideBtn = document.getElementById("outside-btn");
+  if (outsideBtn) outsideBtn.style.display = "inline-block";
 
   const roomName = doorMesh.name.replace("door_", "");
-  const room = layoutData.rooms.find(r => r.name === roomName);
+  const room = layoutData.rooms.find(r => r && r.name === roomName);
+  
+  if (!room || typeof room.x !== 'number' || typeof room.y !== 'number' ||
+      typeof room.width !== 'number' || typeof room.length !== 'number' ||
+      typeof room.height !== 'number') {
+    console.error("Room not found or invalid:", roomName, room);
+    return;
+  }
 
   // Floor
   const floor = BABYLON.MeshBuilder.CreateGround("floor", {
@@ -204,18 +239,68 @@ function setupScene() {
 
 // Button handlers
 window.addEventListener("DOMContentLoaded", () => {
+  const canvasEl = document.getElementById("renderCanvas");
+  if (!canvasEl) {
+    console.error("Canvas element not found");
+    return;
+  }
+  
   setupScene();
-  document.getElementById("generate-btn").onclick = async () => {
-    layoutData = await fetchLayout({
-      num_people: +document.getElementById("num_people").value,
-      budget: document.getElementById("budget").value,
-      needs: document.getElementById("needs").value
-    });
-    isInterior = false;
-    document.getElementById("explanation").innerText = layoutData.explanation;
-    createExterior();
+  
+  const generateBtn = document.getElementById("generate-btn");
+  if (!generateBtn) {
+    console.error("Generate button not found");
+    return;
+  }
+  
+  generateBtn.onclick = async () => {
+    try {
+      const explanationEl = document.getElementById("explanation");
+      explanationEl.innerText = "Generating layout...";
+      
+      layoutData = await fetchLayout({
+        num_people: +document.getElementById("num_people").value,
+        budget: document.getElementById("budget").value,
+        needs: document.getElementById("needs").value
+      });
+      
+      // Check for errors in the response
+      if (layoutData.error) {
+        explanationEl.innerText = `Failed to generate layout: ${layoutData.error}\n\n${layoutData.explanation || "Please check your inputs and try again."}`;
+        explanationEl.style.color = "#d32f2f";
+        return;
+      }
+      
+      // Validate layoutData structure
+      if (!layoutData.rooms || !Array.isArray(layoutData.rooms) || layoutData.rooms.length === 0) {
+        explanationEl.innerText = "Failed to generate layout: No rooms were generated. Please try again.";
+        explanationEl.style.color = "#d32f2f";
+        return;
+      }
+      
+      isInterior = false;
+      explanationEl.innerText = layoutData.explanation || "Layout generated successfully.";
+      explanationEl.style.color = "#000";
+      createExterior();
+    } catch (error) {
+      const explanationEl = document.getElementById("explanation");
+      explanationEl.innerText = `Failed to generate layout: ${error.message}`;
+      explanationEl.style.color = "#d32f2f";
+      console.error("Error generating layout:", error);
+    }
   };
-  document.getElementById("outside-btn").onclick = () => {
+  
+  const outsideBtn = document.getElementById("outside-btn");
+  if (!outsideBtn) {
+    console.warn("Outside button not found");
+    return;
+  }
+  
+  outsideBtn.onclick = () => {
+    if (!scene || !canvas || !currentCamera) {
+      console.error("Scene not initialized");
+      return;
+    }
     // Restore exterior camera
     currentCamera.detachControl(canvas);
     currentCamera.dispose();
